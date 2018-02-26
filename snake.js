@@ -5,8 +5,13 @@ const widthBoard = canvas.width;
 const heightBoard = canvas.height;
 const rectScale = 20;
 
-function gen(max) {
-    return Math.floor(Math.random() * (max / rectScale)) * rectScale;
+function genRect(max) {
+    return gen(0, max, rectScale);
+}
+
+function gen(min, max, scale) {
+    scale = scale === undefined ? 1 : scale;
+    return (Math.floor(Math.random() * ((max - min) / scale)) * scale) + min;
 }
 
 const Direction = {
@@ -33,14 +38,14 @@ GameObject.prototype.clear = function() {
 };
 
 GameObject.prototype.genNewPosition = function(x, y) {
-    this.x = x === undefined ? gen(widthBoard) : x;
-    this.y = y === undefined ? gen(heightBoard): y;
+    this.x = x === undefined ? genRect(widthBoard) : x;
+    this.y = y === undefined ? genRect(heightBoard): y;
 };
 
-Snake = function() {
+const Snake = function() {
     GameObject.apply(this, ["#ff085f"]);
     this.speed = 1;
-    this.direction = Direction.DOWN;
+    this.direction = gen(0, 4);
     this.tail = [];
 };
 
@@ -52,9 +57,11 @@ Snake.prototype.move = function() {
         for (let i = this.tail.length; i > 1; i--) {
             this.tail[i - 1].x = this.tail[i - 2].x;
             this.tail[i - 1].y = this.tail[i - 2].y;
+            this.tail[i - 1].direction = this.tail[i - 2].direction;
         }
         this.tail[0].x = this.x;
         this.tail[0].y = this.y;
+        this.tail[0].direction = this.direction;
     }
 
     switch (this.direction) {
@@ -75,25 +82,28 @@ Snake.prototype.move = function() {
 
 Snake.prototype.eat = function() {
     let tailPart;
+    let direction;
     if (this.tail.length > 0) {
         let lastTailPart = this.tail[this.tail.length - 1];
-        tailPart = new TailPart(lastTailPart.x, lastTailPart.y);
+        tailPart = new TailPart(lastTailPart.x, lastTailPart.y, lastTailPart.direction);
+        direction = lastTailPart.direction;
     } else {
-        tailPart = new TailPart(this.x, this.y);
+        tailPart = new TailPart(this.x, this.y, this.direction);
+        direction = this.direction;
     }
 
-    switch (this.direction) {
+    switch (direction) {
         case Direction.UP:
-            tailPart.y -= this.height;
-            break;
-        case Direction.DOWN:
             tailPart.y += this.height;
             break;
+        case Direction.DOWN:
+            tailPart.y -= this.height;
+            break;
         case Direction.LEFT:
-            tailPart.x -= this.width;
+            tailPart.x += this.width;
             break;
         case Direction.RIGHT:
-            tailPart.x += this.width;
+            tailPart.x -= this.width;
             break;
     }
 
@@ -116,6 +126,7 @@ Snake.prototype.paint = function() {
 
 Snake.prototype.genNewPosition = function() {
     GameObject.prototype.genNewPosition.apply(this, arguments);
+    this.direction = gen(0, 4);
     this.tail = [];
 };
 
@@ -128,8 +139,9 @@ Snake.prototype.eatHimself = function() {
     return false;
 };
 
-const TailPart = function (x, y) {
+const TailPart = function (x, y, direction) {
     GameObject.apply(this, ["#ff7160", x, y]);
+    this.direction = direction;
 };
 
 TailPart.prototype = Object.create(GameObject.prototype);
@@ -179,7 +191,7 @@ function processCollision() {
     } else {
         for (let apple of apples) {
             if (snake.x === apple.x &&
-                snake.y === apple.y) {
+                    snake.y === apple.y) {
                 snake.eat();
                 apple.genNewPosition();
             }
